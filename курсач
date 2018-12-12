@@ -1,0 +1,280 @@
+#define crt_secure_no_warnings
+
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <stdlib.h>
+
+typedef struct {
+	char data[256];//само число
+	int sign;//знак
+}BInt;
+
+BInt Sum(BInt a, BInt b);
+BInt Dif(BInt a, BInt b);
+int cmp(const BInt *a, const BInt *b);
+
+BInt Sum(BInt a, BInt b) {//сложение
+	BInt result;
+	int i, tmp, alen, blen;
+	if (a.sign == -1 && b.sign == -1) {
+		result.sign = -1;
+	}
+	else if (a.sign == -1 && b.sign == 1) {
+		a.sign = 1;
+		return Dif(b, a);
+	}
+	else if (a.sign == 1 && b.sign == -1) {
+		b.sign = 1;
+		return Dif(a, b);
+	}
+	else {
+		result.sign = 1;
+	}
+	strrev(a.data);
+	strrev(b.data);
+	alen = strlen(a.data);
+	blen = strlen(b.data);
+	for (tmp = 0, i = 0; i < alen && i < blen; i++) {
+		tmp += (a.data[i] - '0') + (b.data[i] - '0');
+		result.data[i] = abs(tmp % 10 + '0');
+		tmp /= 10;
+	}
+	if (alen > blen) {
+		for (; i < alen; i++) {
+			tmp += (a.data[i] - '0');
+			result.data[i] = abs(tmp % 10 + '0');
+			tmp /= 10;
+		}
+	}
+	else {
+		for (; i < blen; i++) {
+			tmp += (b.data[i] - '0');
+			result.data[i] = abs(tmp % 10 + '0');
+			tmp /= 10;
+		}
+	}
+	if (tmp) {
+		result.data[i++] = tmp + '0';
+	}
+	result.data[i] = 0;
+	strrev(result.data);
+	return result;
+}
+
+BInt Dif(BInt a, BInt b) {//разность
+	BInt result, t;
+	int i, tmp, alen, blen;
+	if (a.sign == 1 && b.sign == -1) {
+		b.sign = 1;
+		return Sum(a, b);
+	}
+	else if (a.sign == -1 && b.sign == 1) {
+		b.sign = -1;
+		return Sum(a, b);
+	}
+	else if (a.sign == -1 && b.sign == -1) {
+		a.sign == 1;
+		b.sign = 1;
+		return Dif(b, a);
+	}
+	else {
+		if (!cmp(&a, &b)) {
+			t = a;
+			a = b;
+			b = t;
+			result.sign = -1;
+		}
+		else {
+			result.sign = 1;
+		}
+	}
+	strrev(a.data);
+	strrev(b.data);
+	alen = strlen(a.data);
+	blen = strlen(b.data);
+	for (tmp = 0, i = 0; i < alen && i < blen; i++) {//значение младших разрядов
+		tmp += (a.data[i] - '0') - (b.data[i] - '0');
+		if (tmp < 0) {
+			result.data[i] = (10 + tmp) + '0';
+			tmp = -1;
+		}
+		else {
+			result.data[i] = tmp + '0';
+			tmp = 0;
+		}
+	}
+	if (alen > blen) {//дописываем старшие разряды
+		for (; i < alen; i++) {
+			tmp += (a.data[i] - '0');
+			if (tmp < 0) {
+				result.data[i] = (10 + tmp) + '0';
+				tmp = -1;
+			}
+			else {
+				result.data[i] = tmp + '0';
+				tmp = 0;
+			}
+		}
+	}
+	else {
+		for (; i < blen; i++) {
+			tmp += (b.data[i] - '0');
+			if (tmp < 0) {
+				result.data[i] = (10 + tmp) + '0';
+				tmp = -1;
+			}
+			else {
+				result.data[i] = tmp + '0';
+				tmp = 0;
+			}
+		}
+	}
+	if (tmp) {
+		result.data[i++] = tmp + '0';
+	}
+	while (result.data[--i] == '0');//убираем лишние пробелы
+	result.data[i + 1] = 0;
+	strrev(result.data);
+	return result;
+}
+
+BInt mul(BInt a, int data) {//умножение на число
+	BInt result;
+	int i, len, tmp = 0;
+	result.sign = a.sign;
+	strrev(a.data);
+	len = strlen(a.data);
+	for (i = 0; i < len; ++i) {
+		tmp += (a.data[i] - '0') * data;
+		result.data[i] = abs(tmp % 10 + '0');
+		tmp /= 10;
+	}
+	if (tmp) {
+		result.data[i++] = tmp + '0';
+	}
+	result.data[i] = 0;
+	strrev(result.data);
+	return result;
+}
+
+BInt Sub(BInt a, BInt b) {//умножение
+	BInt result = { "0" }, tmp;
+	int i, blen;
+	blen = strlen(b.data);
+	for (i = 0; i < blen; ++i)
+		result = Sum(mul(a, (b.data[i] - '0')), mul(result, 10));
+	result.sign = a.sign * b.sign;//получаем знак
+	return result;
+}
+
+int cmp(const BInt *a, const BInt *b) {//сравнение двух чисел
+	int alen, blen;
+	alen = strlen(a->data);
+	blen = strlen(b->data);
+	if (alen > blen) {
+		return 1;
+	}
+	else if (alen < blen) {
+		return 0;
+	}
+	else {
+		return strcmp(a->data, b->data) >= 0;
+	}
+}
+
+BInt Div(BInt a, BInt b) {//деление
+	BInt tmp, bb = b;
+	int i = 1;
+	tmp.sign = a.sign / b.sign;//получаем знак
+	while (cmp(&a, &bb)) {
+		itoa(i, tmp.data, 10);
+		bb = Sub(b, tmp);
+		i++;
+	}
+	i -= 2;
+	if (i < 0) i = 0;
+	itoa(i, tmp.data, 10);
+	return tmp;
+}
+
+BInt calc(BInt a, BInt b, char oper) {//вычисление операци
+	switch (oper) {
+	case '+':
+		return Sum(a, b);
+	case '-':
+		return Dif(b, a);
+	case '*':
+		return Sub(a, b);
+	case '/':
+		return Div(b, a);
+	}
+}
+
+int main() {
+	BInt temp[20];//стэк чисел
+	char opers[20];//стэк операторов
+	char input[200], *p, oper;
+	int tlen = 0, flag = 0, olen = 0, is_start = 1;
+	scanf("%s", input);
+	p = input;
+	temp[0].sign = 1;
+	memset(temp[0].data, 0, 256);
+	while (*p != 0) {//проходим по каждому символу
+		if (*p >= '0' && *p <= '9') {//если число
+			if (flag) {
+				tlen++;
+				memset(temp[tlen].data, 0, 256);
+				temp[tlen].sign = 1;
+				flag = 0;
+			}
+			temp[tlen].data[strlen(temp[tlen].data)] = *p;
+		}
+		else {//если оператор
+			flag = 1;
+			if (*p == '(') {
+				if (is_start) {
+					flag = 0;
+				}
+				opers[olen++] = *p;
+			}
+			else if (*p == ')') {
+				while (opers[--olen] != '(') {//пока не считаем все операторы из скобки
+					temp[tlen - 1] = calc(temp[tlen], temp[tlen - 1], opers[olen]);
+					tlen--;
+				}
+			}
+			else if (*p == '+' || *p == '-') {
+				if (tlen > 0 && opers[olen - 1] != '(' && olen > 0) {
+					temp[tlen - 1] = calc(temp[tlen], temp[tlen - 1], opers[--olen]);
+					tlen--;
+				}
+				opers[olen++] = *p;
+			}
+			else if (*p == '*' || *p == '/') {
+				if ((tlen > 0 && olen == 0) || (olen != 0 && opers[olen - 1] != '(' && opers[olen - 1] != '+' && opers[olen - 1] != '-')) {//проверка на старшинство операторов
+					temp[tlen - 1] = calc(temp[tlen], temp[tlen - 1], opers[--olen]);
+					tlen--;
+				}
+				opers[olen++] = *p;
+			}
+		}
+		p++;
+		is_start = 0;
+	}
+	for (olen--; olen >= 0; olen--) {//выводим всё, что осталось
+		temp[tlen - 1] = calc(temp[tlen], temp[tlen - 1], opers[olen]);
+		tlen--;
+	}
+	if (temp[0].sign == -1) {
+		printf(" = -%s", temp[0].data);
+	}
+	else {
+		printf(" = %s", temp[0].data);
+	}
+	if (p[0] == '\0')
+	{
+		printf("0");
+	}
+	scanf("%s", input);
+}
